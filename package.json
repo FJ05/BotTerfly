@@ -1,0 +1,22 @@
+{
+  "name": "botterfly",
+  "version": "1.0.0",
+  "description": "An discord bot that responds to messages using Ai",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FJ05/BotTerfly.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/FJ05/BotTerfly/issues"
+  },
+  "homepage": "https://github.com/FJ05/BotTerfly#readme",
+  "dependencies": {
+    "discord.js": "^14.9.0"
+  }
+}
