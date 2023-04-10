@@ -2,8 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token, clientId } = require('./config.json');
-const Dalai = require('dalai')
-
+const { prompt } = require('./prompt.json')
 // Create a new client instance
 const client = new Client({
     intents: [
@@ -57,6 +56,9 @@ client.on(Events.InteractionCreate, async interaction => {
 	}
 });
 
+// array of strings that i don't want in my output
+var badWords = ["<start>", "<end>", "undefined", "[end of text]", "you respond with:", "says:", "bot says:", "\""];
+var activce = false;
 // bot replies to messages if it is mentioned
 client.on("messageCreate", (message) => {
     if (message.author.bot) return false;
@@ -69,17 +71,37 @@ client.on("messageCreate", (message) => {
             content = content.replace("<@1094580903457603714>","");
         }
         // content will be used as a prompt for the chatbot
-        const Dalai = require('dalai')
-        new Dalai().request({
-        model: "7B",
-        prompt: "The following is a conversation between a boy and a girl:",
-        }, (token) => {
-        process.stdout.write(token)
-        console.log(token)
-        })
-
+        if (!activce) {
+            activce = true;
+            const Dalai = require('dalai')
+            try {
+                var responce;
+                new Dalai().request({
+                    model: "alpaca.7B",
+                    n_predict: 128,
+                    threads: -2,
+                    prompt: prompt + "\n" + message.author.username + " says: " + content + "\nbot says: ",
+                    }, (token) => {
+                        responce += token;
+                        process.stdout.write(token)
+                            if (responce.includes("<end>")) {
+                                responce = responce.replace(prompt, "");
+                                responce = responce.replace(message.author.username, "");
+                                responce = responce.replace(content, "");
+                                // remove bad words from the output
+                                for (var i = 0; i < badWords.length; i++) {
+                                    responce = responce.replace(badWords[i], "");
+                                }
+                                message.reply(responce);
+                                activce = false;
+                            }
+                    })
+            } catch (error) {
+                console.error(error);
+            }  
+        }
+        
     }
 });
-
 // Log in to Discord with your client's token
 client.login(token);

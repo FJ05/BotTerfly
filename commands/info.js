@@ -1,10 +1,14 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, Embed} = require('discord.js');
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('info')
 		.setDescription('Sends info about the bot'),
 	async execute(interaction) {
-		await interaction.reply('This is a certified hood classic bot.');
+		const embed = new EmbedBuilder()
+			.setTitle('Info')
+			.setDescription('This bot was created by @FJ05#0100\n\nThis bot is still in development, so expect bugs and glitches.\nThis bot is running on Node.js, Discord.js and Alpaca 7B \n\nThis bot is open source, so you can contribute to it on GitHub: https://github.com/FJ05/BotTerfly')
+			.setColor("#FFA500")
+		await interaction.reply({ embeds: [embed] });
 	},
 };

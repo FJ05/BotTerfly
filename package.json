@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/FJ05/BotTerfly#readme",
   "dependencies": {
+    "dalai": "^0.3.1",
     "discord.js": "^14.9.0"
   }
 }
