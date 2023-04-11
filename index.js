@@ -62,13 +62,6 @@ client.on(Events.InteractionCreate, async interaction => {
 		}
 	}
 });
-
-// array of strings that i don't want in my output
-var badWords = ["<start>", "<end>", "undefined", "[end of text]", "you respond with:", "says:", "BotTerfly says:", "\""];
-var activce = false;
-
-// config for the web ui
-
 // bot replies to messages if it is mentioned
 var thinking = false;
 client.on("messageCreate", (message) => {
@@ -82,7 +75,9 @@ client.on("messageCreate", (message) => {
 		// remove the bot's client ID from the message
 		//connect to oobaboogas server
 		var url = "http://" + oobServer + ":" + oobPort + "/run/textgen";
-		var prompt = content;
+		var Inputprompt = prompt + message.author.username + " says:" + content + "\nBotTerfly says: ";
+		Inputprompt = Inputprompt.replace("<@1094580903457603714>", "")
+		console.log("Input prompt: " + Inputprompt);
 		const params = {
 			'max_new_tokens': 120,
 			'do_sample': true,
@@ -92,16 +87,17 @@ client.on("messageCreate", (message) => {
 			'repetition_penalty': 1.18,
 			'encoder_repetition_penalty': 1.0,
 			'top_k': 0,
-			'min_length': 0,
+			'min_length': 1,
 			'no_repeat_ngram_size': 0,
 			'num_beams': 1,
 			'penalty_alpha': 0,
-			'length_penalty': 1,
-			'early_stopping': false,
+			'length_penalty': 2,
+			'early_stopping': true,
 			'seed': -1,
+			'stopping_strings': ["\n", "BotTerfly says:", message.author.username + " says:"],
 		};
 		
-		const payload = JSON.stringify([prompt, params]);
+		const payload = JSON.stringify([Inputprompt, params]);
 		const requestData = { data: [payload] };
 	
 		console
@@ -110,8 +106,8 @@ client.on("messageCreate", (message) => {
 			// Handle the response
 			var botResponse = response.data.data[0];
 			// remove the prompt from the response
-			botResponse = botResponse.replace(content, "");
-
+			botResponse = botResponse.replace(Inputprompt, "");
+			console.log("Bot response: " + botResponse);
 			message.reply(botResponse);
 			thinking = false;
 		})

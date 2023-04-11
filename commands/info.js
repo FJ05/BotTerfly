@@ -7,7 +7,7 @@ module.exports = {
 	async execute(interaction) {
 		const embed = new EmbedBuilder()
 			.setTitle('Info')
-			.setDescription('This bot was created by @FJ05#0100\n\nThis bot is still in development, so expect bugs and glitches.\nThis bot is running on Node.js, Discord.js and Alpaca 7B \n\nThis bot is open source, so you can contribute to it on GitHub: https://github.com/FJ05/BotTerfly')
+			.setDescription('This bot was created by @FJ05#0100\n\nThis bot is still in development, so expect bugs and glitches.\nThis bot is running on Node.js, Discord.js and oobabooga/text-generation-webui\n\nThis bot is open source, so you can contribute to it on GitHub: https://github.com/FJ05/BotTerfly')
 			.setColor("#FFA500")
 		await interaction.reply({ embeds: [embed] });
 	},
