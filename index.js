@@ -107,7 +107,12 @@ client.on("messageCreate", (message) => {
 			var botResponse = response.data.data[0];
 			// remove the prompt from the response
 			botResponse = botResponse.replace(Inputprompt, "");
-			console.log("Bot response: " + botResponse);
+			if (botResponse.includes("FJ05 says:")) {
+				// remove everything after FJ05 says:
+				botResponse = botResponse.substring(0, botResponse.indexOf("\n"));
+				botResponse = botResponse.substring(0, botResponse.indexOf("FJ05 says:"));
+				botResponse = botResponse.replace("FJ05 says:", "");
+			}
 			message.reply(botResponse);
 			thinking = false;
 		})
