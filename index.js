@@ -70,7 +70,13 @@ client.on("messageCreate", (message) => {
     if (message.content.includes(clientId) && !thinking) {
 		thinking = true;
 		// if thinking is true repeat message.channel.sendTyping();
-		message.channel.sendTyping();
+		const sendTypingInterval = setInterval(() => {
+            if (!thinking) {
+                clearInterval(sendTypingInterval);
+            } else {
+                message.channel.sendTyping();
+            }
+        }, 4000);
         var content = message.content;
 		// remove the bot's client ID from the message
 		//connect to oobaboogas server
@@ -113,7 +119,14 @@ client.on("messageCreate", (message) => {
 				botResponse = botResponse.substring(0, botResponse.indexOf("FJ05 says:"));
 				botResponse = botResponse.replace("FJ05 says:", "");
 			}
-			message.reply(botResponse);
+			if(response =! null)
+			{
+				message.reply(botResponse);
+			}
+			else
+			{
+				message.reply("I'm sorry, I'm not feeling well today.");
+			}
 			thinking = false;
 		})
 		.catch(error => {
