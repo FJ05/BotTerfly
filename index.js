@@ -69,14 +69,6 @@ client.on("messageCreate", (message) => {
     // if the message contains the bot's client ID, reply with a mention
     if (message.content.includes(clientId) && !thinking) {
 		thinking = true;
-		// if thinking is true repeat message.channel.sendTyping();
-		const sendTypingInterval = setInterval(() => {
-            if (!thinking) {
-                clearInterval(sendTypingInterval);
-            } else {
-                message.channel.sendTyping();
-            }
-        }, 4000);
         var content = message.content;
 		// remove the bot's client ID from the message
 		//connect to oobaboogas server
@@ -90,43 +82,32 @@ client.on("messageCreate", (message) => {
 			'temperature': 0.72,
 			'top_p': 0.73,
 			'typical_p': 1,
-			'repetition_penalty': 1.18,
+			'repetition_penalty': 1.1,
 			'encoder_repetition_penalty': 1.0,
 			'top_k': 0,
-			'min_length': 1,
+			'min_length': 0,
 			'no_repeat_ngram_size': 0,
 			'num_beams': 1,
 			'penalty_alpha': 0,
-			'length_penalty': 2,
-			'early_stopping': true,
+			'length_penalty': 1,
+			'early_stopping': false,
 			'seed': -1,
-			'stopping_strings': ["\n", "BotTerfly says:", message.author.username + " says:"],
+			'add_bos_token': true,
+			'custom_stopping_strings': ["\n", "BotTerfly says:", message.author.username + " says:"],
 		};
 		
 		const payload = JSON.stringify([Inputprompt, params]);
 		const requestData = { data: [payload] };
-	
-		console
+
+		// sends out that the bot is thinking stops when it gets a response
+		message.channel.sendTyping();
 		axios.post(url, requestData)
 		.then(response => {
 			// Handle the response
 			var botResponse = response.data.data[0];
 			// remove the prompt from the response
 			botResponse = botResponse.replace(Inputprompt, "");
-			if (botResponse.includes("FJ05 says:")) {
-				// remove everything after FJ05 says:
-				botResponse = botResponse.substring(0, botResponse.indexOf("\n"));
-				botResponse = botResponse.substring(0, botResponse.indexOf("FJ05 says:"));
-				botResponse = botResponse.replace("FJ05 says:", "");
-			}
-			if(response =! null)
-			{
-				message.reply(botResponse);
-			}
-			else
-			{
-				message.reply("I'm sorry, I'm not feeling well today.");
-			}
+			message.reply(botResponse);
 			thinking = false;
 		})
 		.catch(error => {
