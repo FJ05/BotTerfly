@@ -64,18 +64,25 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 // bot replies to messages if it is mentioned
 var thinking = false;
-client.on("messageCreate", (message) => {
+client.on("messageCreate", async (message) => {
     if (message.author.bot) return false;
     // if the message contains the bot's client ID, reply with a mention
     if (message.content.includes(clientId) && !thinking) {
 		thinking = true;
-        var content = message.content;
-		// remove the bot's client ID from the message
-		//connect to oobaboogas server
+		var custom_stopping_strings = ["\n", message.author.username + " says: ", "BotTerfly says: "]
+		var input = message.content
+		input = input.replace("<@"+ clientId + ">", "");
+		var response = await oobRequest(prompt + "\n" + message.author.username + " says: " + input + "\nBotTerfly says: ", custom_stopping_strings);
+		message.reply(response);
+		thinking = false;
+	}
+});
+
+function oobRequest(inputPrompt, custom_stopping_strings) {
+	// set up a promise to return the response
+	return new Promise(function (resolve) {
+		// settings for the request
 		var url = "http://" + oobServer + ":" + oobPort + "/run/textgen";
-		var Inputprompt = prompt + message.author.username + " says:" + content + "\nBotTerfly says: ";
-		Inputprompt = Inputprompt.replace("<@1094580903457603714>", "")
-		console.log("Input prompt: " + Inputprompt);
 		const params = {
 			'max_new_tokens': 120,
 			'do_sample': true,
@@ -90,32 +97,31 @@ client.on("messageCreate", (message) => {
 			'num_beams': 1,
 			'penalty_alpha': 0,
 			'length_penalty': 1,
-			'early_stopping': false,
+			'early_stopping': true,
 			'seed': -1,
 			'add_bos_token': true,
-			'custom_stopping_strings': ["\n", "BotTerfly says:", message.author.username + " says:"],
+			'custom_stopping_strings': [custom_stopping_strings],
 		};
-		
-		const payload = JSON.stringify([Inputprompt, params]);
+
+		console.log("Input prompt: " + inputPrompt);
+		const payload = JSON.stringify([inputPrompt, params]);
 		const requestData = { data: [payload] };
 
-		// sends out that the bot is thinking stops when it gets a response
-		message.channel.sendTyping();
+		// sends out the request and returns the response
 		axios.post(url, requestData)
-		.then(response => {
-			// Handle the response
-			var botResponse = response.data.data[0];
-			// remove the prompt from the response
-			botResponse = botResponse.replace(Inputprompt, "");
-			message.reply(botResponse);
-			thinking = false;
-		})
-		.catch(error => {
-			// Handle errors
-			console.error('Error:', error);
-			thinking = false;
-		});
-    }
-});
+			.then(response => {
+				// Handle the response
+				var botResponse = response.data.data[0];
+				// remove the prompt from the response
+				botResponse = botResponse.replace(inputPrompt, "");
+				resolve(botResponse);
+			})
+			.catch(error => {
+				// Handle errors
+				console.error('Error:', error);
+				resolve("Error");
+			});
+	});
+}
 // Log in to Discord with your client's token
 client.login(token);
