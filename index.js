@@ -1,9 +1,20 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, ConnectionVisibility } = require('discord.js');
 const { token, clientId } = require('./config.json');
 const { prompt } = require('./prompt.json')
 const axios = require('axios');
+const http = require('http');
+// Global variables used as states
+var typing = false;
+var thinking = false;
+// Networking settings
+var oobServer = "127.0.0.1"
+var oobPort = 5000;
+var staDiffServer = "127.0.0.1"
+var staDiffPort = 7861;
+
+//
 // Create a new client instance
 const client = new Client({
     intents: [
@@ -18,10 +29,6 @@ client.commands = new Collection();
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-
-// Networking settings¨
-var oobServer = "127.0.0.1"
-var oobPort = 7860;
 
 
 for (const file of commandFiles) {
@@ -63,27 +70,45 @@ client.on(Events.InteractionCreate, async interaction => {
 	}
 });
 // bot replies to messages if it is mentioned
-var thinking = false;
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return false;
     // if the message contains the bot's client ID, reply with a mention
     if (message.content.includes(clientId) && !thinking) {
 		thinking = true;
-		var custom_stopping_strings = ["\n", message.author.username + " says: ", "BotTerfly says: "]
-		var input = message.content
-		input = input.replace("<@"+ clientId + ">", "");
-		var response = await oobRequest(prompt + "\n" + message.author.username + " says: " + input + "\nBotTerfly says: ", custom_stopping_strings);
-		message.reply(response);
-		thinking = false;
+		var input = message.content;
+		message.channel.sendTyping();
+
+		if (message.content.toLowerCase(includes("selfie"))){
+			var inputRemoval = ["<@"+ clientId + ">", "selfie of", "selfie"];
+			if (message.content.toLowerCase(includes("selfie of"))){ // send a selfie of {userInput}
+				input = toLowerCase(input);
+				inputRemoval.forEach(element => {
+					input = input.replace(element, "");
+				});
+				input
+			}
+			else{ // send a selfie of BotTerfly
+				
+			}
+		}
+		else{
+			var custom_stopping_strings = ["\n"," " + message.author.username + " says:", " BotTerfly says:"];
+			var bad_words = [message.author.username + " says", "BotTerfly says"];
+			input = input.replace("<@"+ clientId + ">", "");
+			var response = await oobRequest(prompt + "\n" + message.author.username + " says:" + input + " BotTerfly says:", custom_stopping_strings, bad_words);
+			message.reply(response);
+			thinking = false;
+		}
+		
 	}
 });
 
-function oobRequest(inputPrompt, custom_stopping_strings) {
+
+function oobRequest(inputPrompt, custom_stopping_strings, bad_words) {
 	// set up a promise to return the response
 	return new Promise(function (resolve) {
-		// settings for the request
-		var url = "http://" + oobServer + ":" + oobPort + "/run/textgen";
-		const params = {
+		const data = JSON.stringify({
+			'prompt': inputPrompt,
 			'max_new_tokens': 120,
 			'do_sample': true,
 			'temperature': 0.72,
@@ -100,28 +125,79 @@ function oobRequest(inputPrompt, custom_stopping_strings) {
 			'early_stopping': true,
 			'seed': -1,
 			'add_bos_token': true,
-			'custom_stopping_strings': [custom_stopping_strings],
+			'truncation_length': 2048,
+			'ban_eos_token': false,
+			'skip_special_tokens': true,
+			'stopping_strings': custom_stopping_strings,
+		});
+		  
+		const options = {
+			hostname: oobServer,
+			port: oobPort,
+			path: '/api/v1/generate',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': data.length
+			}
 		};
+		const req = http.request(options, (res) => {
+			let responseData = '';
+		
+			res.on('data', (chunk) => {
+			responseData += chunk;
+			});
+		
+			res.on('end', () => {
+				if (responseData.trim() !== '') {
+					var response = JSON.parse(responseData);
+					var msg = response.results[0].text;
+					bad_words.forEach(element => {
+						msg = msg.replace(element, "");
+					});
+					resolve(msg);
+				} else {
+					resolve("Error: Empty response");
+				}
+			});
+		});
+		  
+		req.on('error', (error) => {
+			console.error('Error:', error);
+			resolve("Error")
+		});
+		
+		req.write(data);
+		req.end();
+	});
+}
+// function to send a request to the Stabile diffusion server
+function staDiffRequest(inputPrompt, characterSettings){
+	return new Promise(function (resolve) {
+		var url = "http://" + staDiffServer + ":" + staDiffPort;
+		const params = {
 
+		};
 		console.log("Input prompt: " + inputPrompt);
 		const payload = JSON.stringify([inputPrompt, params]);
 		const requestData = { data: [payload] };
 
 		// sends out the request and returns the response
 		axios.post(url, requestData)
-			.then(response => {
-				// Handle the response
-				var botResponse = response.data.data[0];
-				// remove the prompt from the response
-				botResponse = botResponse.replace(inputPrompt, "");
-				resolve(botResponse);
-			})
-			.catch(error => {
-				// Handle errors
-				console.error('Error:', error);
-				resolve("Error");
-			});
+		.then(response => {
+			// Handle the response
+			var botResponse = response.data.data[0];
+			// remove the prompt from the response
+			botResponse = botResponse.replace(inputPrompt, "");
+			resolve(botResponse);
+		})
+		.catch(error => {
+			// Handle errors
+			console.error('Error:', error);
+			resolve("Error");
+		});
 	});
+
 }
 // Log in to Discord with your client's token
 client.login(token);
