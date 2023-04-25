@@ -7,7 +7,7 @@ module.exports = {
 	async execute(interaction) {
 		const embed = new EmbedBuilder()
 			.setTitle('Info')
-			.setDescription('This bot was created by @FJ05#0100\nDevelopment goals for the bot\n1. Integrate stable diffusion into the bot which will make it able to generate pictures\n2. Integrate long term memory')
+			.setDescription('This bot was created by @FJ05#0100\nDevelopment goals for the bot\n1. Integrate long term memory')
 			.setColor("#FFA500")
 		await interaction.reply({ embeds: [embed] });
 	},

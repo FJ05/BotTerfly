@@ -77,10 +77,16 @@ client.on("messageCreate", async (message) => {
     // if the message contains the bot's client ID, reply with a mention
     if (message.content.includes(clientId) && !thinking) {
 		thinking = true;
-		var input = message.content;
 		message.channel.sendTyping();
-		if (input.includes("take a selfie")){
-			var inputRemoval = ["selfie", "<@"+ clientId + ">", "take a", "take", " of "];
+		var input = message.content;
+		var custom_stopping_strings = ["\n"," " + message.author.username + " says:", " BotTerfly says:"];
+		var bad_words = [message.author.username + " says", "BotTerfly says"];
+		input = input.replace("<@"+ clientId + ">", "");
+		console.log("sending to oob server: " + input);
+		var response = await oobRequest(prompt + "\n" + message.author.username + " says:" + input + " BotTerfly says:", custom_stopping_strings, bad_words);
+		message.reply(response);
+		if (input.includes("take a selfie") || input.includes("take a picture") || input.includes("take a photo") || input.includes("take a pic") || input.includes("send a selfie") || input.includes("send a picture") || input.includes("send a photo") || input.includes("send a pic")){
+			var inputRemoval = ["selfie", "<@"+ clientId + ">", "take a", " of ", "picture", "photo", "pic", "send a"];
 			inputRemoval.forEach(element => {
 				input = input.replace(element, "");
 			});
@@ -98,23 +104,21 @@ client.on("messageCreate", async (message) => {
 				case input.includes("you"):
 					input = input.replace("you", ", she's");
 					break;
+				case input.includes("you as a"):
+					input = input.replace("you as a", ", she's as a");
+					break;
+				case input.includes("you as an"):
+					input = input.replace("you as an", ", she's as an");
+					break;
 			}
 			// send request to staDiff server
+			console.log("sending to staDiff server: " + input);
 			imageOutput = await staDiffRequest(input, true);
 			// wait for 1 second
 			await new Promise(r => setTimeout(r, 1000));
-			message.reply("Sure!" + {files: ["image.png"]});
-			thinking = false;
+			message.channel.send({files: ["image.png"]});
 		}
-		else{
-			var custom_stopping_strings = ["\n"," " + message.author.username + " says:", " BotTerfly says:"];
-			var bad_words = [message.author.username + " says", "BotTerfly says"];
-			input = input.replace("<@"+ clientId + ">", "");
-			var response = await oobRequest(prompt + "\n" + message.author.username + " says:" + input + " BotTerfly says:", custom_stopping_strings, bad_words);
-			message.reply(response);
-			thinking = false;
-		}
-		
+		thinking = false;
 	}
 });
 
@@ -222,7 +226,6 @@ function staDiffRequest(inputPrompt, characterSettings){
 				if (responseData.trim() !== '') {
 					// transform the response into a JSON object
 					var response = JSON.parse(responseData);
-					console.log(response);
 					// translate the raw data to a png image
 					const imageData = base64.toByteArray(response.images[0]);
 					const image = await Jimp.read(imageData.buffer);
