@@ -101,14 +101,14 @@ client.on("messageCreate", async (message) => {
 				case input.includes("you and"):
 					input = input.replace("you with", ", she's with");
 					break;
-				case input.includes("you"):
-					input = input.replace("you", ", she's");
-					break;
 				case input.includes("you as a"):
 					input = input.replace("you as a", ", she's as a");
 					break;
 				case input.includes("you as an"):
 					input = input.replace("you as an", ", she's as an");
+					break;
+				case input.includes("you"):
+					input = input.replace("you", ", she's");
 					break;
 			}
 			// send request to staDiff server
