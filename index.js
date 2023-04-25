@@ -1,10 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, Events, GatewayIntentBits, ConnectionVisibility } = require('discord.js');
+const { Client, Collection, Events, GatewayIntentBits, ConnectionVisibility} = require('discord.js');
+const Discord = require('discord.js')
 const { token, clientId } = require('./config.json');
 const { prompt } = require('./prompt.json')
-const axios = require('axios');
 const http = require('http');
+const Jimp = require('jimp');
+const base64 = require('base64-js');
 // Global variables used as states
 var typing = false;
 var thinking = false;
@@ -77,19 +79,32 @@ client.on("messageCreate", async (message) => {
 		thinking = true;
 		var input = message.content;
 		message.channel.sendTyping();
-
-		if (message.content.toLowerCase(includes("selfie"))){
-			var inputRemoval = ["<@"+ clientId + ">", "selfie of", "selfie"];
-			if (message.content.toLowerCase(includes("selfie of"))){ // send a selfie of {userInput}
-				input = toLowerCase(input);
-				inputRemoval.forEach(element => {
-					input = input.replace(element, "");
-				});
-				input
+		if (input.includes("take a selfie")){
+			var inputRemoval = ["selfie", "<@"+ clientId + ">", "take a", "take", " of "];
+			inputRemoval.forEach(element => {
+				input = input.replace(element, "");
+			});
+			input = input.toLowerCase();
+			switch(true){
+				case input.includes("you holding"):
+					input = input.replace("you holding", ", she's holding");
+					break;
+				case input.includes("you with"):
+					input = input.replace("you with a", ", she's has");
+					break;
+				case input.includes("you and"):
+					input = input.replace("you with", ", she's with");
+					break;
+				case input.includes("you"):
+					input = input.replace("you", ", she's");
+					break;
 			}
-			else{ // send a selfie of BotTerfly
-				
-			}
+			// send request to staDiff server
+			imageOutput = await staDiffRequest(input, true);
+			// wait for 1 second
+			await new Promise(r => setTimeout(r, 1000));
+			message.reply("Sure!" + {files: ["image.png"]});
+			thinking = false;
 		}
 		else{
 			var custom_stopping_strings = ["\n"," " + message.author.username + " says:", " BotTerfly says:"];
@@ -173,29 +188,61 @@ function oobRequest(inputPrompt, custom_stopping_strings, bad_words) {
 }
 // function to send a request to the Stabile diffusion server
 function staDiffRequest(inputPrompt, characterSettings){
+	const { characterSettingsPrompt } = require('./prompt.json');
+	const { negativePrompts } = require('./prompt.json');
+	if (characterSettings != true){
+		characterSettingsPrompt = "";
+	}
 	return new Promise(function (resolve) {
-		var url = "http://" + staDiffServer + ":" + staDiffPort;
-		const params = {
+		const data = JSON.stringify({
+			'prompt': characterSettingsPrompt + inputPrompt,
+			"steps": 50,
+			"height": 688,
+			"negative_prompt": negativePrompts // helps filter unwanted images
 
+		});		  
+		const options = {
+			hostname: staDiffServer,
+			port: staDiffPort,
+			path: '/sdapi/v1/txt2img',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': data.length
+			}
 		};
-		console.log("Input prompt: " + inputPrompt);
-		const payload = JSON.stringify([inputPrompt, params]);
-		const requestData = { data: [payload] };
-
-		// sends out the request and returns the response
-		axios.post(url, requestData)
-		.then(response => {
-			// Handle the response
-			var botResponse = response.data.data[0];
-			// remove the prompt from the response
-			botResponse = botResponse.replace(inputPrompt, "");
-			resolve(botResponse);
-		})
-		.catch(error => {
-			// Handle errors
-			console.error('Error:', error);
-			resolve("Error");
+		const req = http.request(options, (res) => {
+			let responseData = '';
+		
+			res.on('data', (chunk) => {
+			responseData += chunk;
+			});
+		
+			res.on('end', async () => {
+				if (responseData.trim() !== '') {
+					// transform the response into a JSON object
+					var response = JSON.parse(responseData);
+					console.log(response);
+					// translate the raw data to a png image
+					const imageData = base64.toByteArray(response.images[0]);
+					const image = await Jimp.read(imageData.buffer);
+					// save the image to a file
+					image.write("image.png");
+					// return the image
+					resolve("done");
+				} else {
+					resolve("Error: Empty response");
+				}
+			});
 		});
+		  
+		req.on('error', (error) => {
+			console.error('Error:', error);
+			resolve("Error")
+		});
+		
+		req.write(data);
+		req.end();
 	});
 
 }
