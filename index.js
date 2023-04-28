@@ -1,14 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits, ConnectionVisibility} = require('discord.js');
-const Discord = require('discord.js')
 const { token, clientId } = require('./config.json');
 const { prompt } = require('./prompt.json')
 const http = require('http');
 const Jimp = require('jimp');
 const base64 = require('base64-js');
 // Global variables used as states
-var typing = false;
 var thinking = false;
 // Networking settings
 var oobServer = "127.0.0.1"
@@ -77,53 +75,88 @@ client.on("messageCreate", async (message) => {
     // if the message contains the bot's client ID, reply with a mention
     if (message.content.includes(clientId) && !thinking) {
 		thinking = true;
-		message.channel.sendTyping();
-		var input = message.content;
-		var custom_stopping_strings = ["\n"," " + message.author.username + " says:", " BotTerfly says:"];
-		var bad_words = [message.author.username + " says", "BotTerfly says"];
-		input = input.replace("<@"+ clientId + ">", "");
-		console.log("sending to oob server: " + input);
-		var response = await oobRequest(prompt + "\n" + message.author.username + " says:" + input + " BotTerfly says:", custom_stopping_strings, bad_words);
-		message.reply(response);
-		if (input.includes("take a selfie") || input.includes("take a picture") || input.includes("take a photo") || input.includes("take a pic") || input.includes("send a selfie") || input.includes("send a picture") || input.includes("send a photo") || input.includes("send a pic")){
-			var inputRemoval = ["selfie", "<@"+ clientId + ">", "take a", " of ", "picture", "photo", "pic", "send a"];
-			inputRemoval.forEach(element => {
-				input = input.replace(element, "");
-			});
-			input = input.toLowerCase();
-			switch(true){
-				case input.includes("you holding"):
-					input = input.replace("you holding", ", she's holding");
-					break;
-				case input.includes("you with"):
-					input = input.replace("you with a", ", she's has");
-					break;
-				case input.includes("you and"):
-					input = input.replace("you with", ", she's with");
-					break;
-				case input.includes("you as a"):
-					input = input.replace("you as a", ", she's as a");
-					break;
-				case input.includes("you as an"):
-					input = input.replace("you as an", ", she's as an");
-					break;
-				case input.includes("you"):
-					input = input.replace("you", ", she's");
-					break;
+		while (thinking){
+			message.channel.sendTyping();
+			var input = message.content;
+			if (input.includes("restartMEMO")){
+				// delete './ChatLogs/' + message.channelId + '.json'
+				fs.unlink('./ChatLogs/' + message.channelId + '.json', (err) => {
+					if (err) {
+						console.error(err)
+						return
+					}
+				});
+				message.reply("Chat log deleted. :P");
 			}
-			// send request to staDiff server
-			console.log("sending to staDiff server: " + input);
-			imageOutput = await staDiffRequest(input, true);
-			// wait for 1 second
-			await new Promise(r => setTimeout(r, 1000));
-			message.channel.send({files: ["image.png"]});
+			else if (input.includes("take a selfie") || input.includes("send a selfie")){
+				var inputRemoval = ["selfie", "<@"+ clientId + ">", "take a", " of ", "picture", "photo", "pic", "send a"];
+				inputRemoval.forEach(element => {
+					input = input.replace(element, "");
+				});
+				input = input.toLowerCase();
+				switch(true){
+					case input.includes("you holding"):
+						input = input.replace("you holding", ", she's holding");
+						break;
+					case input.includes("you with"):
+						input = input.replace("you with a", ", she's has");
+						break;
+					case input.includes("you and"):
+						input = input.replace("you with", ", she's with");
+						break;
+					case input.includes("you as a"):
+						input = input.replace("you as a", ", she's as a");
+						break;
+					case input.includes("you as an"):
+						input = input.replace("you as an", ", she's as an");
+						break;
+					case input.includes("you"):
+						input = input.replace("you", ", she's");
+						break;
+				}
+				// send request to staDiff server
+				console.log("sending to staDiff server: " + input);
+				imageOutput = await staDiffRequest(input, true);
+				// wait for 1 second
+				await new Promise(r => setTimeout(r, 1000));
+				message.channel.send({files: ["image.png"]});
+			}
+			else{
+				var custom_stopping_strings = ["\n"," " + message.author.username + " says:", " BotTerfly says:" , message.author.username + " says", " BotTerfly says"];
+				var bad_words = [message.author.username + " says", "BotTerfly says"];
+				input = input.replace("<@"+ clientId + ">", "");
+				console.log("sending to oob server: " + input);
+				var oobPrompt;
+				if (fs.existsSync('./ChatLogs/' + message.channelId + '.json')){
+					oobPrompt = require('./ChatLogs/' + message.channelId + '.json');
+					// make oob into string
+					oobPrompt = JSON.stringify(oobPrompt);
+				}
+				else{
+					oobPrompt = prompt + "\n" + message.author.username + " says:" + input + " BotTerfly says:"
+				}
+				var response = await oobRequest(oobPrompt, custom_stopping_strings, bad_words, message.channelId);
+				console.log("response: " + response);
+				if (response != ""){
+					message.reply(response);
+					thinking = false;
+				}
+				else {
+					fs.unlink('./ChatLogs/' + message.channelId + '.json', (err) => {
+						if (err) {
+							console.error(err)
+							return
+						}
+					});
+				}
+			}
 		}
-		thinking = false;
+		
 	}
 });
 
 
-function oobRequest(inputPrompt, custom_stopping_strings, bad_words) {
+function oobRequest(inputPrompt, custom_stopping_strings, bad_words, ChannelID) {
 	// set up a promise to return the response
 	return new Promise(function (resolve) {
 		const data = JSON.stringify({
@@ -136,7 +169,7 @@ function oobRequest(inputPrompt, custom_stopping_strings, bad_words) {
 			'repetition_penalty': 1.1,
 			'encoder_repetition_penalty': 1.0,
 			'top_k': 0,
-			'min_length': 0,
+			'min_length': 2,
 			'no_repeat_ngram_size': 0,
 			'num_beams': 1,
 			'penalty_alpha': 0,
@@ -171,9 +204,32 @@ function oobRequest(inputPrompt, custom_stopping_strings, bad_words) {
 				if (responseData.trim() !== '') {
 					var response = JSON.parse(responseData);
 					var msg = response.results[0].text;
+					custom_stopping_strings.forEach(element => {
+						msg = msg.replace(element, "");
+					});
+
+					// this part of the code will save the chat logs to a json file
+					// checks if there is a json file in ./ChatLogs/ that matches the server ID
+					if (ServerID =! null){
+						var chatLogs = inputPrompt + msg;
+
+						if (fs.existsSync('./ChatLogs/' + ChannelID + '.json')) {
+							
+							// Adds logs to the json file
+							var chatLogsJSON = require('./ChatLogs/' + ChannelID + '.json');
+							chatLogsJSON = chatLogsJSON + chatLogs;
+							fs.writeFileSync('./ChatLogs/' + ChannelID + '.json', JSON.stringify(chatLogsJSON));
+						}
+						else {
+							// creates a new json file if there isn't one
+						    fs.writeFileSync('./ChatLogs/' + ChannelID + '.json', JSON.stringify(chatLogs));
+						}
+					}
+
 					bad_words.forEach(element => {
 						msg = msg.replace(element, "");
 					});
+					console.log(msg);
 					resolve(msg);
 				} else {
 					resolve("Error: Empty response");
@@ -202,7 +258,8 @@ function staDiffRequest(inputPrompt, characterSettings){
 			'prompt': characterSettingsPrompt + inputPrompt,
 			"steps": 50,
 			"height": 688,
-			"negative_prompt": negativePrompts // helps filter unwanted images
+			"negative_prompt": negativePrompts, // helps filter unwanted images
+			"sampler_name": "DDIM",
 
 		});		  
 		const options = {
@@ -219,7 +276,7 @@ function staDiffRequest(inputPrompt, characterSettings){
 			let responseData = '';
 		
 			res.on('data', (chunk) => {
-			responseData += chunk;
+				responseData += chunk;
 			});
 		
 			res.on('end', async () => {
